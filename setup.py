@@ -21,10 +21,12 @@ try:
         ], include_dirs=[osp.join(ROOT_DIR, "svox", "csrc", "include")],
         optional=True),
     ]
-except:
+except Exception as e:
     import warnings
     warnings.warn("Failed to build CUDA extension")
+    print(f"Error message is:\n{e}")
     ext_modules = []
+
 
 setup(
     name='svox',
