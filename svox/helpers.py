@@ -24,6 +24,7 @@
 import torch
 import numpy as np
 
+
 class N3TreeView:
     def __init__(self, tree, key):
         self.tree = tree
@@ -35,7 +36,7 @@ class N3TreeView:
         if isinstance(key, tuple) and len(key) >= 3:
             # Handle tree[x, y, z[, c]]
             main_key = torch.tensor(key[:3], dtype=tree.data.dtype,
-                        device=tree.data.device).reshape(1, 3)
+                                    device=tree.data.device).reshape(1, 3)
             if len(key) > 3:
                 key = (main_key, *key[3:])
             else:
@@ -212,8 +213,8 @@ class N3TreeView:
         if length.ndim == 1:
             length = length[:, None]
         u = torch.rand((corn.shape[0], n_samples, 3),
-                device=device,
-                dtype=length.dtype) * length[:, None]
+                       device=device,
+                       dtype=length.dtype) * length[:, None]
         return corn[:, None] + u
 
     def sample_local(self, n_samples):
@@ -227,8 +228,8 @@ class N3TreeView:
         corn = self.corners_local
         length = self.lengths_local
         u = torch.rand((corn.shape[0], n_samples, 3),
-                device=length.device,
-                dtype=length.dtype) * length[:, None, None]
+                       device=length.device,
+                       dtype=length.dtype) * length[:, None, None]
         return corn[:, None] + u
 
     def aux(self, arr):
@@ -332,29 +333,34 @@ class N3TreeView:
         if self.tree._ver > self._tree_ver:
             self.key = self._packed_ids = None
             raise RuntimeError("N3TreeView has been invalidated because tree " +
-                    "data layout has changed")
+                               "data layout has changed")
 
 # Redirect functions to Tensor
+
+
 def _redirect_funcs():
     redir_funcs = ['__floordiv__', '__mod__', '__div__',
                    '__eq__', '__ne__', '__ge__', '__gt__', '__le__',
                    '__lt__', '__floor__', '__ceil__', '__round__', '__len__',
                    'item', 'size', 'dim', 'numel']
     redir_grad_funcs = ['__add__', '__mul__', '__sub__',
-                   '__mod__', '__div__', '__truediv__',
-                   '__radd__', '__rsub__', '__rmul__',
-                   '__rdiv__', '__abs__', '__pos__', '__neg__',
-                   '__len__', 'clamp', 'clamp_max', 'clamp_min', 'relu', 'sigmoid',
-                   'max', 'min', 'mean', 'sum', '__getitem__']
+                        '__mod__', '__div__', '__truediv__',
+                        '__radd__', '__rsub__', '__rmul__',
+                        '__rdiv__', '__abs__', '__pos__', '__neg__',
+                        '__len__', 'clamp', 'clamp_max', 'clamp_min', 'relu', 'sigmoid',
+                        'max', 'min', 'mean', 'sum', '__getitem__']
+
     def redirect_func(redir_func, grad=False):
         def redir_impl(self, *args, **kwargs):
             return getattr(self.values if grad else self.values_nograd, redir_func)(
-                    *args, **kwargs)
+                *args, **kwargs)
         setattr(N3TreeView, redir_func, redir_impl)
     for redir_func in redir_funcs:
         redirect_func(redir_func)
     for redir_func in redir_grad_funcs:
         redirect_func(redir_func, grad=True)
+
+
 _redirect_funcs()
 
 
@@ -373,20 +379,24 @@ def _get_c_extension():
              "Please do not import svox in the SVOX source directory.")
     return _C
 
+
 class LocalIndex:
     """
     To query N3Tree using 'local' index :math:`[0,1]^3`,
     tree[LocalIndex(points)] where points (N, 3)
     """
+
     def __init__(self, val):
         self.val = val
+
 
 class DataFormat:
     RGBA = 0
     SH = 1
     SG = 2
     ASG = 3
-    def __init__(self, txt):
+
+    def __init__(self, txt, extra_slot=0):
         nonalph_idx = [c.isalpha() for c in txt]
         if False in nonalph_idx:
             nonalph_idx = nonalph_idx.index(False)
@@ -397,7 +407,7 @@ class DataFormat:
             if format_type == "SH":
                 self.format = DataFormat.SH
                 assert int(self.basis_dim ** 0.5) ** 2 == self.basis_dim, \
-                       "SH basis dim must be square number"
+                    "SH basis dim must be square number"
                 assert self.basis_dim <= 25, "SH only supported up to basis_dim 25"
             elif format_type == "SG":
                 self.format = DataFormat.SG
@@ -408,7 +418,9 @@ class DataFormat:
         else:
             self.format = DataFormat.RGBA
             self.basis_dim = -1
-            self.data_dim = None
+            self.data_dim = 4
+
+        self.data_dim += extra_slot  # XYZ for offset coordinates
 
     def __repr__(self):
         if self.format == DataFormat.SH:

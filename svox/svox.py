@@ -70,6 +70,7 @@ class N3Tree(nn.Module):
             init_reserve=1, init_refine=0, geom_resize_fact=1.0,
             radius=0.5, center=[0.5, 0.5, 0.5],
             data_format="RGBA",
+            extra_slot=0,
             extra_data=None,
             device="cpu",
             dtype=torch.float32,
@@ -93,6 +94,7 @@ class N3Tree(nn.Module):
         :param radius: float or list, 1/2 side length of cube (possibly in each dim)
         :param center: list center of space
         :param data_format: a string to indicate the data format. :code:`RGBA | SH# | SG# | ASG#`
+        :param extra_slot: number of data slot in the tree to allocate, nothing to do with `extra_data`
         :param extra_data: extra data to include with tree
         :param device: str device to put data
         :param dtype: str tree data type, torch.float32 (default) | torch.float64
@@ -109,8 +111,9 @@ class N3Tree(nn.Module):
             device = map_location
         assert dtype == torch.float32 or dtype == torch.float64, 'Unsupported dtype'
 
-        self.data_format = DataFormat(data_format) if data_format is not None else None
+        self.data_format = DataFormat(data_format, extra_slot) if data_format is not None else None
         self.data_dim : int = data_dim
+        self.extra_slot: int = extra_slot
         self._maybe_auto_data_dim()
         del data_dim
 
@@ -844,6 +847,7 @@ class N3Tree(nn.Module):
             self.shrink_to_fit()
         data = {
             "data_dim" : self.data_dim,
+            "extra_slot" : self.extra_slot,
             "child" : self.child.cpu(),
             "parent_depth" : self.parent_depth.cpu(),
             "n_internal" : self._n_internal.cpu().item(),
@@ -881,6 +885,7 @@ class N3Tree(nn.Module):
         tree = cls(dtype=dtype, device=device)
         z = np.load(path)
         tree.data_dim = int(z["data_dim"])
+        tree.extra_slot = int(z["extra_slot"])
         tree.child = torch.from_numpy(z["child"]).to(device)
         tree.N = tree.child.shape[-1]
         tree.parent_depth = torch.from_numpy(z["parent_depth"]).to(device)
